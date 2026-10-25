@@ -1490,13 +1490,21 @@
                         <div id="initial-dropdown" class="risk-view">
                             <div class="form-row">
                                 <div class="form-group"><label>Likelihood</label><select class="form-control" id="initialLikelihood" onchange="updateInitialRiskResult()">
-                                        <option value="6">A - Certain</option><option value="5">B - Likely</option><option value="4">C - Possible</option>
-                                        <option value="3">D - Unlikely</option><option value="2">E - Rare</option><option value="1">F - Very Rare</option>
-                                    </select></div>
+    <option value="6">6 – Almost Certain</option>
+    <option value="5">5 – Very Likely</option>
+    <option value="4">4 – Likely</option>
+    <option value="3">3 – Possible</option>
+    <option value="2">2 – Unlikely</option>
+    <option value="1">1 – Rare</option>
+</select></div>
                                 <div class="form-group"><label>Severity</label><select class="form-control" id="initialSeverity" onchange="updateInitialRiskResult()">
-                                        <option value="1">1 - Negligible</option><option value="2">2 - Minor</option><option value="3">3 - Serious</option>
-                                        <option value="4">4 - Major</option><option value="5">5 - Catastrophic</option><option value="6">6 - Disastrous</option>
-                                    </select></div>
+  <option value="A">A – Disastrous</option>
+    <option value="B">B – Catastrophic</option>
+    <option value="C">C – Major</option>
+    <option value="D">D – Serious</option>
+    <option value="E">E – Minor</option>
+    <option value="F">F – Negligible</option>
+</select></div>
                             </div>
                         </div>
                         <div id="initial-matrix" class="risk-view hidden">
@@ -1520,12 +1528,20 @@
                         <div id="residual-dropdown" class="risk-view">
                             <div class="form-row">
                                 <div class="form-group"><label>Likelihood</label><select class="form-control" id="residualLikelihood" onchange="updateResidualRiskResult()">
-                                        <option value="6">A - Certain</option><option value="5">B - Likely</option><option value="4">C - Possible</option>
-                                        <option value="3">D - Unlikely</option><option value="2">E - Rare</option><option value="1">F - Very Rare</option>
+                                           <option value="6">6 – Almost Certain</option>
+    <option value="5">5 – Very Likely</option>
+    <option value="4">4 – Likely</option>
+    <option value="3">3 – Possible</option>
+    <option value="2">2 – Unlikely</option>
+    <option value="1">1 – Rare</option>
                                     </select></div>
                                 <div class="form-group"><label>Severity</label><select class="form-control" id="residualSeverity" onchange="updateResidualRiskResult()">
-                                        <option value="1">1 - Negligible</option><option value="2">2 - Minor</option><option value="3">3 - Serious</option>
-                                        <option value="4">4 - Major</option><option value="5">5 - Catastrophic</option><option value="6">6 - Disastrous</option>
+                           <option value="A">A – Disastrous</option>
+    <option value="B">B – Catastrophic</option>
+    <option value="C">C – Major</option>
+    <option value="D">D – Serious</option>
+    <option value="E">E – Minor</option>
+    <option value="F">F – Negligible</option>
                                     </select></div>
                             </div>
                         </div>
@@ -1755,34 +1771,71 @@
         // ========================================================================
         // ===== EGPC MATRIX =====
         // ========================================================================
-        const EGPC_MATRIX = {
-            RED: ['3A', '4A', '5A', '6A', '4B', '5B', '6B', '5C', '6C'],
-            ORANGE: ['1A', '2A', '3B', '4C', '5D', '6D', '6E'],
-            YELLOW: ['1B', '2B', '2C', '3C', '3D', '4D', '4E', '5E', '5F', '6F'],
-            getCellColor: function(severity, likelihood) {
-                const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-                const letter = letters[6 - likelihood];
-                const code = severity + letter;
-                if (this.RED.includes(code)) return 'red';
-                if (this.ORANGE.includes(code)) return 'orange';
-                if (this.YELLOW.includes(code)) return 'yellow';
-                return 'green';
-            },
-            getColorClass: function(severity, likelihood) { return 'matrix-' + this.getCellColor(severity, likelihood); },
-            getRiskLevel: function(score) {
-                if (score <= 6) return { level: 'Low', color: 'green' };
-                if (score <= 12) return { level: 'Medium', color: 'yellow' };
-                if (score <= 19) return { level: 'High', color: 'orange' };
-                return { level: 'Extreme', color: 'red' };
-            },
-            getRiskScore: function(severity, likelihood) { return severity * likelihood; },
-            getRiskCode: function(severity, likelihood) {
-                const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-                return severity + letters[6 - likelihood];
-            }
-        };
+        // ===== Severity (A-F) × Likelihood (1-6) constants =====
+const SEVERITY_LETTERS = ['A','B','C','D','E','F'];
+const SEVERITY_NAMES = {
+    A:'Disastrous', B:'Catastrophic', C:'Major', D:'Serious', E:'Minor', F:'Negligible'
+};
+const LIKELIHOOD_NUMBERS = [1,2,3,4,5,6];
+const LIKELIHOOD_NAMES = {
+    1:'Rare', 2:'Unlikely', 3:'Possible', 4:'Likely', 5:'Very Likely', 6:'Almost Certain'
+};
 
-        // ========================================================================
+// Convert any legacy value to the new canonical form
+function normalizeSeverity(sev) {
+    // Already a letter — assume new format
+    if (typeof sev === 'string' && /^[A-Fa-f]$/.test(sev)) return sev.toUpperCase();
+    // Legacy numeric value: 1=Negligible … 6=Disastrous
+    // Convert to new letter: old 1 → F, old 6 → A
+    const n = typeof sev === 'number' ? sev : parseInt(sev);
+    if (!isNaN(n) && n >= 1 && n <= 6) return SEVERITY_LETTERS[6 - n];
+    return 'F'; // safest default (Negligible)
+}
+function normalizeLikelihood(lik) {
+    if (typeof lik === 'number' && lik >= 1 && lik <= 6) return lik;
+    if (typeof lik === 'string') {
+        const idx = ['A','B','C','D','E','F'].indexOf(lik.toUpperCase());
+        if (idx >= 0) return 6 - idx;          // legacy: A=6 … F=1
+        const n = parseInt(lik);
+        if (!isNaN(n) && n >= 1 && n <= 6) return n;
+    }
+    return 1;
+}
+function severityToNumber(sev) {
+    const idx = SEVERITY_LETTERS.indexOf(normalizeSeverity(sev)); // A=0 … F=5
+    return 6 - idx;                                                // A→6, F→1
+}
+const EGPC_MATRIX = {
+    // Code = LikelihoodNumber + SeverityLetter  →  1A, 2A, …, 6F
+    // A=Disastrous(6) … F=Negligible(1)  |  1=Rare … 6=Almost Certain
+    RED:    ['4A','5A','6A','4B','5B','6B','5C','6C','6D'],
+    ORANGE: ['2A','3A','3B','4C','5D','6E','6F'],
+    YELLOW: ['1A','1B','2B','2C','3C','3D','4D','4E','5E','5F'],
+
+    getCellColor: function(severity, likelihood) {
+        const code = normalizeLikelihood(likelihood) + normalizeSeverity(severity);
+        if (this.RED.includes(code))    return 'red';
+        if (this.ORANGE.includes(code)) return 'orange';
+        if (this.YELLOW.includes(code)) return 'yellow';
+        return 'green';
+    },
+    getColorClass: function(severity, likelihood) {
+        return 'matrix-' + this.getCellColor(severity, likelihood);
+    },
+    getRiskLevel: function(score) {
+        if (score <= 6)  return { level: 'Low',     color: 'green'  };
+        if (score <= 12) return { level: 'Medium',  color: 'yellow' };
+        if (score <= 19) return { level: 'High',    color: 'orange' };
+        return             { level: 'Extreme', color: 'red'    };
+    },
+    getRiskScore: function(severity, likelihood) {
+        return severityToNumber(severity) * normalizeLikelihood(likelihood);
+    },
+    getRiskCode: function(severity, likelihood) {
+        return normalizeLikelihood(likelihood) + normalizeSeverity(severity);
+    }
+};
+// ========================================================================
         // ===== UTILITY FUNCTIONS =====
         // ========================================================================
         function formatDateTime(isoString) {
@@ -2302,88 +2355,82 @@
             else updateResidualRiskResult();
         }
 
-        function buildRiskMatrix(tableId, type) {
-            const table = document.getElementById(tableId);
-            if (!table) return;
-            const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-            const severities = [1, 2, 3, 4, 5, 6];
-            let html = '<thead><tr><th>P\\S</th>';
-            for (let s of severities) html += `<th>${s}</th>`;
-            html += '</tr></thead><tbody>';
-            for (let l of letters) {
-                const lVal = 6 - letters.indexOf(l);
-                html += `<tr><th>${l}</th>`;
-                for (let s of severities) {
-                    const code = EGPC_MATRIX.getRiskCode(s, lVal);
-                    const cls = EGPC_MATRIX.getColorClass(s, lVal);
-                    let isSelected = false;
-                    if (type === 'initial') isSelected = (STATE.initialSeverity === s && STATE.initialLikelihood === lVal);
-                    else if (type === 'residual') isSelected = (STATE.residualSeverity === s && STATE.residualLikelihood ===
-                        lVal);
-                    const sel = isSelected ? 'selected' : '';
-                    const score = EGPC_MATRIX.getRiskScore(s, lVal);
-                    html += `<td class="${cls} ${sel}" onclick="selectMatrixCell('${type}',${s},${lVal})" title="${code} - Score: ${score}">${code}</td>`;
-                }
-                html += '</tr>';
-            }
-            html += '</tbody>';
-            table.innerHTML = html;
-        }
+    function buildRiskMatrix(tableId, type) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
 
-        function selectMatrixCell(type, severity, likelihood) {
-            if (type === 'initial') {
-                STATE.initialSeverity = severity;
-                STATE.initialLikelihood = likelihood;
-                document.getElementById('initialLikelihood').value = likelihood;
-                document.getElementById('initialSeverity').value = severity;
-                updateInitialRiskResult();
-                buildRiskMatrix('initialMatrix', 'initial');
-            } else {
-                STATE.residualSeverity = severity;
-                STATE.residualLikelihood = likelihood;
-                document.getElementById('residualLikelihood').value = likelihood;
-                document.getElementById('residualSeverity').value = severity;
-                updateResidualRiskResult();
-                buildRiskMatrix('residualMatrix', 'residual');
-            }
-        }
+    const severities  = SEVERITY_LETTERS;        // A → F   (rows, top → bottom)
+    const likelihoods = [1, 2, 3, 4, 5, 6];      // 1 → 6   (columns, left → right)
 
-        function updateInitialRiskResult() {
-            const l = parseInt(document.getElementById('initialLikelihood').value) || 1;
-            const s = parseInt(document.getElementById('initialSeverity').value) || 1;
-            STATE.initialLikelihood = l;
-            STATE.initialSeverity = s;
-            const score = EGPC_MATRIX.getRiskScore(s, l);
+    let html = '<thead><tr><th>S\\L</th>';
+    for (let l of likelihoods) html += `<th>${l}</th>`;
+    html += '</tr></thead><tbody>';
+
+    for (let s of severities) {                  // one row per severity
+        html += `<tr><th>${s}</th>`;
+        for (let l of likelihoods) {             // one column per likelihood
             const code = EGPC_MATRIX.getRiskCode(s, l);
-            const level = EGPC_MATRIX.getRiskLevel(score);
-            const el = document.getElementById('initialRiskResult');
-            el.querySelector('.code').textContent = 'Code: ' + code;
-            el.querySelector('.score').textContent = 'Score: ' + score;
-            const badge = el.querySelector('.level-badge');
-            badge.textContent = level.level;
-            badge.style.background = level.color === 'green' ? '#43a047' : level.color === 'yellow' ? '#fdd835' : level
-            .color === 'orange' ? '#ef6c00' : '#d32f2f';
-            badge.style.color = level.color === 'yellow' ? '#333' : 'white';
-        }
-
-        function updateResidualRiskResult() {
-            const l = parseInt(document.getElementById('residualLikelihood').value) || 1;
-            const s = parseInt(document.getElementById('residualSeverity').value) || 1;
-            STATE.residualLikelihood = l;
-            STATE.residualSeverity = s;
+            const cls  = EGPC_MATRIX.getColorClass(s, l);
+            const stateSev = type === 'initial' ? STATE.initialSeverity : STATE.residualSeverity;
+            const stateLik = type === 'initial' ? STATE.initialLikelihood : STATE.residualLikelihood;
+            const isSelected = normalizeSeverity(stateSev) === s && normalizeLikelihood(stateLik) === l;
+            const sel = isSelected ? 'selected' : '';
             const score = EGPC_MATRIX.getRiskScore(s, l);
-            const code = EGPC_MATRIX.getRiskCode(s, l);
-            const level = EGPC_MATRIX.getRiskLevel(score);
-            const el = document.getElementById('residualRiskResult');
-            el.querySelector('.code').textContent = 'Code: ' + code;
-            el.querySelector('.score').textContent = 'Score: ' + score;
-            const badge = el.querySelector('.level-badge');
-            badge.textContent = level.level;
-            badge.style.background = level.color === 'green' ? '#43a047' : level.color === 'yellow' ? '#fdd835' : level
-            .color === 'orange' ? '#ef6c00' : '#d32f2f';
-            badge.style.color = level.color === 'yellow' ? '#333' : 'white';
+            html += `<td class="${cls} ${sel}" onclick="selectMatrixCell('${type}','${s}',${l})" title="${code} - Score: ${score}">${code}</td>`;
         }
+        html += '</tr>';
+    }
+    html += '</tbody>';
+    table.innerHTML = html;
+}
+function selectMatrixCell(type, severity, likelihood) {
+    if (type === 'initial') {
+        STATE.initialSeverity   = severity;
+        STATE.initialLikelihood = likelihood;
+        document.getElementById('initialLikelihood').value = likelihood;
+        document.getElementById('initialSeverity').value   = severity;
+        updateInitialRiskResult();
+        buildRiskMatrix('initialMatrix', 'initial');
+    } else {
+        STATE.residualSeverity   = severity;
+        STATE.residualLikelihood = likelihood;
+        document.getElementById('residualLikelihood').value = likelihood;
+        document.getElementById('residualSeverity').value   = severity;
+        updateResidualRiskResult();
+        buildRiskMatrix('residualMatrix', 'residual');
+    }
+}
 
+function _renderRiskResult(elId, severity, likelihood) {
+    const s = normalizeSeverity(severity);
+    const l = normalizeLikelihood(likelihood);
+    const score = EGPC_MATRIX.getRiskScore(s, l);
+    const code  = EGPC_MATRIX.getRiskCode(s, l);
+    const level = EGPC_MATRIX.getRiskLevel(score);
+    const el = document.getElementById(elId);
+    el.querySelector('.code').textContent  = 'Code: ' + code;
+    el.querySelector('.score').textContent = 'Score: ' + score;
+    const badge = el.querySelector('.level-badge');
+    badge.textContent = level.level;
+    badge.style.background = level.color === 'green'  ? '#43a047'
+                          : level.color === 'yellow' ? '#fdd835'
+                          : level.color === 'orange' ? '#ef6c00'
+                          :                            '#d32f2f';
+    badge.style.color = level.color === 'yellow' ? '#333' : 'white';
+}
+
+function updateInitialRiskResult() {
+    STATE.initialSeverity   = normalizeSeverity(document.getElementById('initialSeverity').value);
+    STATE.initialLikelihood = normalizeLikelihood(document.getElementById('initialLikelihood').value);
+    _renderRiskResult('initialRiskResult', STATE.initialSeverity, STATE.initialLikelihood);
+}
+
+function updateResidualRiskResult() {
+    STATE.residualSeverity   = normalizeSeverity(document.getElementById('residualSeverity').value);
+    STATE.residualLikelihood = normalizeLikelihood(document.getElementById('residualLikelihood').value);
+    _renderRiskResult('residualRiskResult', STATE.residualSeverity, STATE.residualLikelihood);
+}
+ 
         // ========================================================================
         // ===== SWITCH TAB — FIXED =====
         // ========================================================================
@@ -4342,18 +4389,26 @@ async function saveGasTests() {
             const level = assessment['Overall Risk Level'] || 'Low';
             const color = level === 'Low' ? '#43a047' : level === 'Medium' ? '#fdd835' : level === 'High' ? '#ef6c00' :
                 '#d32f2f';
-            let risksHtml = '';
+                    let risksHtml = '';
             risks.forEach((risk, i) => {
-                const s = EGPC_MATRIX.getRiskScore(risk.severity, risk.likelihood);
-                const lvl = EGPC_MATRIX.getRiskLevel(s);
-                const rs = EGPC_MATRIX.getRiskScore(risk.residualSeverity, risk.residualLikelihood);
+                const sevL  = normalizeSeverity(risk.severity);
+                const likN  = normalizeLikelihood(risk.likelihood);
+                const rSevL = normalizeSeverity(risk.residualSeverity);
+                const rLikN = normalizeLikelihood(risk.residualLikelihood);
+
+                const s    = EGPC_MATRIX.getRiskScore(sevL, likN);
+                const rs   = EGPC_MATRIX.getRiskScore(rSevL, rLikN);
+                const lvl  = EGPC_MATRIX.getRiskLevel(s);
                 const rlvl = EGPC_MATRIX.getRiskLevel(rs);
+                const code  = EGPC_MATRIX.getRiskCode(sevL, likN);
+                const rCode = EGPC_MATRIX.getRiskCode(rSevL, rLikN);
+
                 risksHtml += `<div style="padding:8px 12px;border-bottom:1px solid #e8ecf0;font-size:13px;">
               <strong>#${i+1}: ${risk.hazard}</strong>
               <div style="color:#555;margin:4px 0;">${risk.consequence}</div>
               <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:12px;">
-                <span>Initial: ${risk.riskCode || EGPC_MATRIX.getRiskCode(risk.severity, risk.likelihood)} (${s}) - ${lvl.level}</span>
-                <span>→ Residual: ${risk.residualRiskCode || EGPC_MATRIX.getRiskCode(risk.residualSeverity, risk.residualLikelihood)} (${rs}) - ${rlvl.level}</span>
+                <span>Initial: ${code} (${s}) - ${lvl.level}</span>
+                <span>→ Residual: ${rCode} (${rs}) - ${rlvl.level}</span>
                 ${risk.controlMeasures ? `<span style="color:#666;">Controls: ${risk.controlMeasures.substring(0,40)}${risk.controlMeasures.length>40?'...':''}</span>` : ''}
               </div>
             </div>`;
@@ -4398,38 +4453,39 @@ async function saveGasTests() {
             modal.classList.add('active');
         }
 
-        function buildRiskRegisterHTML(risks) {
-            const likeLetters = ['F', 'E', 'D', 'C', 'B', 'A'];
-            let html = `
-            <div style="overflow-x:auto;">
-              <table class="risk-register-table">
-                <thead><tr><th style="width:4%;">#</th><th class="col-hazard">Hazard</th><th class="col-consequence">Consequence</th>
-                <th class="col-like">Likelihood</th><th class="col-sev">Severity</th><th class="col-code">Risk Cat</th>
-                <th class="col-control">Control Measures</th><th class="col-rlike">Res. Likelihood</th>
-                <th class="col-rsev">Res. Severity</th><th class="col-rcode">Res. Cat</th><th class="col-notes">Notes</th></tr></thead><tbody>
-          `;
-            risks.forEach((risk, i) => {
-                const lvl = EGPC_MATRIX.getRiskLevel(risk.riskScore || EGPC_MATRIX.getRiskScore(risk.severity, risk
-                .likelihood));
-                const rlvl = EGPC_MATRIX.getRiskLevel(risk.residualRiskScore || EGPC_MATRIX.getRiskScore(risk
-                    .residualSeverity, risk.residualLikelihood));
-                const likeLetter = likeLetters[risk.likelihood - 1] || risk.likelihood;
-                const rLikeLetter = likeLetters[risk.residualLikelihood - 1] || risk.residualLikelihood;
-                const code = risk.riskCode || EGPC_MATRIX.getRiskCode(risk.severity, risk.likelihood);
-                const rCode = risk.residualRiskCode || EGPC_MATRIX.getRiskCode(risk.residualSeverity, risk
-                    .residualLikelihood);
-                html += `<tr><td>${i+1}</td><td><strong>${risk.hazard}</strong></td><td>${risk.consequence}</td>
-              <td>${likeLetter}</td><td>${risk.severity}</td>
-              <td><span class="risk-level-badge" style="background:${lvl.color}">${code}</span></td>
-              <td style="font-size:11px;color:#555;">${risk.controlMeasures.replace(/\n/g,'<br>')}</td>
-              <td>${rLikeLetter}</td><td>${risk.residualSeverity}</td>
-              <td><span class="risk-level-badge" style="background:${rlvl.color}">${rCode}</span></td>
-              <td>${risk.notes || ''}</td></tr>`;
-            });
-            html += '</tbody></table></div>';
-            return html;
-        }
+      function buildRiskRegisterHTML(risks) {
+    let html = `
+    <div style="overflow-x:auto;">
+      <table class="risk-register-table">
+        <thead><tr><th style="width:4%;">#</th><th class="col-hazard">Hazard</th><th class="col-consequence">Consequence</th>
+        <th class="col-like">Likelihood</th><th class="col-sev">Severity</th><th class="col-code">Risk Cat</th>
+        <th class="col-control">Control Measures</th><th class="col-rlike">Res. Likelihood</th>
+        <th class="col-rsev">Res. Severity</th><th class="col-rcode">Res. Cat</th><th class="col-notes">Notes</th></tr></thead><tbody>
+  `;
+    risks.forEach((risk, i) => {
+        const sevL  = normalizeSeverity(risk.severity);
+        const likN  = normalizeLikelihood(risk.likelihood);
+        const rSevL = normalizeSeverity(risk.residualSeverity);
+        const rLikN = normalizeLikelihood(risk.residualLikelihood);
 
+        const score  = EGPC_MATRIX.getRiskScore(sevL, likN);
+        const rScore = EGPC_MATRIX.getRiskScore(rSevL, rLikN);
+        const code   = EGPC_MATRIX.getRiskCode(sevL, likN);
+        const rCode  = EGPC_MATRIX.getRiskCode(rSevL, rLikN);
+        const lvl    = EGPC_MATRIX.getRiskLevel(score);
+        const rlvl   = EGPC_MATRIX.getRiskLevel(rScore);
+
+        html += `<tr><td>${i+1}</td><td><strong>${risk.hazard}</strong></td><td>${risk.consequence}</td>
+      <td>${likN}</td><td>${sevL}</td>
+      <td><span class="risk-level-badge" style="background:${lvl.color}">${code}</span></td>
+      <td style="font-size:11px;color:#555;">${risk.controlMeasures.replace(/\n/g,'<br>')}</td>
+      <td>${rLikN}</td><td>${rSevL}</td>
+      <td><span class="risk-level-badge" style="background:${rlvl.color}">${rCode}</span></td>
+      <td>${risk.notes || ''}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    return html;
+}
         function useRiskAssessmentInPermit(assessmentNo) {
             const assessment = STATE.riskAssessments.find(a => a['Assessment No'] === assessmentNo);
             if (!assessment) { showToast('Assessment not found', 'error'); return; }
@@ -4525,38 +4581,43 @@ async function saveGasTests() {
         function showRiskItemModal(index) {
             const modal = document.getElementById('riskItemModal');
             const title = document.getElementById('riskItemModalTitle');
-            if (index >= 0 && index < STATE.riskItems.length) {
-                const risk = STATE.riskItems[index];
-                title.textContent = '✏️ Edit Risk #' + (index + 1);
-                document.getElementById('riskItemIndex').value = index;
-                document.getElementById('riskItemHazard').value = risk.hazard || '';
-                document.getElementById('riskItemConsequence').value = risk.consequence || '';
-                document.getElementById('riskItemControls').value = risk.controlMeasures || '';
-                document.getElementById('riskItemNotes').value = risk.notes || '';
-                document.getElementById('initialLikelihood').value = risk.likelihood || 1;
-                document.getElementById('initialSeverity').value = risk.severity || 1;
-                document.getElementById('residualLikelihood').value = risk.residualLikelihood || 1;
-                document.getElementById('residualSeverity').value = risk.residualSeverity || 1;
-                STATE.initialLikelihood = risk.likelihood || 1;
-                STATE.initialSeverity = risk.severity || 1;
-                STATE.residualLikelihood = risk.residualLikelihood || 1;
-                STATE.residualSeverity = risk.residualSeverity || 1;
-            } else {
-                title.textContent = '➕ Add New Risk';
-                document.getElementById('riskItemIndex').value = '-1';
-                document.getElementById('riskItemHazard').value = '';
-                document.getElementById('riskItemConsequence').value = '';
-                document.getElementById('riskItemControls').value = '';
-                document.getElementById('riskItemNotes').value = '';
-                document.getElementById('initialLikelihood').value = 1;
-                document.getElementById('initialSeverity').value = 1;
-                document.getElementById('residualLikelihood').value = 1;
-                document.getElementById('residualSeverity').value = 1;
-                STATE.initialLikelihood = 1;
-                STATE.initialSeverity = 1;
-                STATE.residualLikelihood = 1;
-                STATE.residualSeverity = 1;
-            }
+           if (index >= 0 && index < STATE.riskItems.length) {
+    const risk = STATE.riskItems[index];
+    title.textContent = '✏️ Edit Risk #' + (index + 1);
+    document.getElementById('riskItemIndex').value      = index;
+    document.getElementById('riskItemHazard').value     = risk.hazard || '';
+    document.getElementById('riskItemConsequence').value = risk.consequence || '';
+    document.getElementById('riskItemControls').value   = risk.controlMeasures || '';
+    document.getElementById('riskItemNotes').value      = risk.notes || '';
+
+    const sev  = normalizeSeverity(risk.severity);
+    const lik  = normalizeLikelihood(risk.likelihood);
+    const rSev = normalizeSeverity(risk.residualSeverity);
+    const rLik = normalizeLikelihood(risk.residualLikelihood);
+
+    document.getElementById('initialLikelihood').value  = lik;
+    document.getElementById('initialSeverity').value    = sev;
+    document.getElementById('residualLikelihood').value = rLik;
+    document.getElementById('residualSeverity').value   = rSev;
+
+    STATE.initialSeverity   = sev;  STATE.initialLikelihood   = lik;
+    STATE.residualSeverity  = rSev; STATE.residualLikelihood  = rLik;
+} else {
+    title.textContent = '➕ Add New Risk';
+    document.getElementById('riskItemIndex').value      = '-1';
+    document.getElementById('riskItemHazard').value     = '';
+    document.getElementById('riskItemConsequence').value = '';
+    document.getElementById('riskItemControls').value   = '';
+    document.getElementById('riskItemNotes').value      = '';
+
+    document.getElementById('initialLikelihood').value  = 1;
+    document.getElementById('initialSeverity').value    = 'A';
+    document.getElementById('residualLikelihood').value = 1;
+    document.getElementById('residualSeverity').value   = 'A';
+
+    STATE.initialLikelihood = 1;  STATE.initialSeverity  = 'A';
+    STATE.residualLikelihood = 1; STATE.residualSeverity = 'A';
+}
             updateInitialRiskResult();
             updateResidualRiskResult();
             buildRiskMatrix('initialMatrix', 'initial');
@@ -4609,45 +4670,54 @@ async function saveGasTests() {
             showToast('Risk saved', 'success');
         }
 
-        function renderRiskItems() {
-            const container = document.getElementById('riskItemsList');
-            if (STATE.riskItems.length === 0) {
-                container.innerHTML =
-                    `<div class="empty-state"><div class="icon">📋</div><p>No risks added yet. Click "Add Risk" to start.</p></div>`;
-                return;
-            }
-            let html = '';
-            STATE.riskItems.forEach((risk, i) => {
-                const lvl = EGPC_MATRIX.getRiskLevel(risk.riskScore || EGPC_MATRIX.getRiskScore(risk.severity, risk
-                    .likelihood));
-                const color = lvl.color;
-                html += `<div class="card risk-item-card" style="margin-bottom:10px;border-left:5px solid ${color==='green'?'#43a047':color==='yellow'?'#fdd835':color==='orange'?'#ef6c00':'#d32f2f'};">
-              <div class="card-body">
-                <div style="flex:1;">
-                  <strong>#${i+1}: ${risk.hazard}</strong>
-                  <div style="font-size:13px;color:#666;margin-top:4px;">${risk.consequence}</div>
-                  <div style="font-size:12px;color:#888;margin-top:4px;">
-                    <span>Initial: ${risk.riskCode || EGPC_MATRIX.getRiskCode(risk.severity, risk.likelihood)} (${risk.riskScore || EGPC_MATRIX.getRiskScore(risk.severity, risk.likelihood)}) - ${risk.riskLevel || EGPC_MATRIX.getRiskLevel(EGPC_MATRIX.getRiskScore(risk.severity, risk.likelihood)).level}</span>
-                    <span style="margin-left:12px;">→ Residual: ${risk.residualRiskCode || EGPC_MATRIX.getRiskCode(risk.residualSeverity, risk.residualLikelihood)} (${risk.residualRiskScore || EGPC_MATRIX.getRiskScore(risk.residualSeverity, risk.residualLikelihood)}) - ${risk.residualRiskLevel || EGPC_MATRIX.getRiskLevel(EGPC_MATRIX.getRiskScore(risk.residualSeverity, risk.residualLikelihood)).level}</span>
-                  </div>
-                  <div style="font-size:12px;color:#888;margin-top:4px;">Controls: ${risk.controlMeasures.substring(0,60)}${risk.controlMeasures.length>60?'...':''}</div>
-                </div>
-                <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
-                  <div class="reorder-buttons">
-                    <button class="btn btn-outline btn-xs" onclick="moveRiskItem(${i}, -1)" ${i===0?'disabled':''} title="Move Up">▲</button>
-                    <button class="btn btn-outline btn-xs" onclick="moveRiskItem(${i}, 1)" ${i===STATE.riskItems.length-1?'disabled':''} title="Move Down">▼</button>
-                  </div>
-                  <div style="display:flex;gap:4px;">
-                    <button class="btn btn-primary btn-xs" type="button" onclick="editRiskItem(${i})">✏️</button>
-                    <button class="btn btn-danger btn-xs" onclick="deleteRiskItem(${i})">🗑️</button>
-                  </div>
-                </div>
-              </div>
-            </div>`;
-            });
-            container.innerHTML = html;
-        }
+     function renderRiskItems() {
+    const container = document.getElementById('riskItemsList');
+    if (STATE.riskItems.length === 0) {
+        container.innerHTML =
+            `<div class="empty-state"><div class="icon">📋</div><p>No risks added yet. Click "Add Risk" to start.</p></div>`;
+        return;
+    }
+    let html = '';
+    STATE.riskItems.forEach((risk, i) => {
+        const sevL  = normalizeSeverity(risk.severity);
+        const likN  = normalizeLikelihood(risk.likelihood);
+        const rSevL = normalizeSeverity(risk.residualSeverity);
+        const rLikN = normalizeLikelihood(risk.residualLikelihood);
 
+        const score  = EGPC_MATRIX.getRiskScore(sevL, likN);
+        const rScore = EGPC_MATRIX.getRiskScore(rSevL, rLikN);
+        const code   = EGPC_MATRIX.getRiskCode(sevL, likN);
+        const rCode  = EGPC_MATRIX.getRiskCode(rSevL, rLikN);
+        const lvl    = EGPC_MATRIX.getRiskLevel(score);
+        const rlvl   = EGPC_MATRIX.getRiskLevel(rScore);
+        const color  = lvl.color;
+
+        html += `<div class="card risk-item-card" style="margin-bottom:10px;border-left:5px solid ${color==='green'?'#43a047':color==='yellow'?'#fdd835':color==='orange'?'#ef6c00':'#d32f2f'};">
+      <div class="card-body">
+        <div style="flex:1;">
+          <strong>#${i+1}: ${risk.hazard}</strong>
+          <div style="font-size:13px;color:#666;margin-top:4px;">${risk.consequence}</div>
+          <div style="font-size:12px;color:#888;margin-top:4px;">
+            <span>Initial: ${code} (${score}) - ${lvl.level}</span>
+            <span style="margin-left:12px;">→ Residual: ${rCode} (${rScore}) - ${rlvl.level}</span>
+          </div>
+          <div style="font-size:12px;color:#888;margin-top:4px;">Controls: ${risk.controlMeasures.substring(0,60)}${risk.controlMeasures.length>60?'...':''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+          <div class="reorder-buttons">
+            <button class="btn btn-outline btn-xs" onclick="moveRiskItem(${i}, -1)" ${i===0?'disabled':''} title="Move Up">▲</button>
+            <button class="btn btn-outline btn-xs" onclick="moveRiskItem(${i}, 1)" ${i===STATE.riskItems.length-1?'disabled':''} title="Move Down">▼</button>
+          </div>
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn-primary btn-xs" type="button" onclick="editRiskItem(${i})">✏️</button>
+            <button class="btn btn-danger btn-xs" onclick="deleteRiskItem(${i})">🗑️</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    });
+    container.innerHTML = html;
+}
         function viewRiskRegister() {
             const modal = document.getElementById('riskRegisterModal');
             const content = document.getElementById('riskRegisterContent');
@@ -4763,8 +4833,11 @@ async function saveGasTests() {
 
         Use the EGPC 6x6 risk matrix. Format each risk exactly as shown below, starting with "RISK X:" and including all sections.
 
-        For Likelihood, use: Certain, Likely, Possible, Unlikely, Rare, Very Rare.
-        For Severity, use: Negligible, Minor, Serious, Major, Catastrophic, Disastrous.
+  For Likelihood, use a NUMBER 1-6:
+1 = Rare, 2 = Unlikely, 3 = Possible, 4 = Likely, 5 = Very Likely, 6 = Almost Certain.
+
+For Severity, use a LETTER A-F:
+A = Negligible, B = Minor, C = Serious, D = Major, E = Catastrophic, F = Disastrous.
 
         ---
 
@@ -4883,49 +4956,62 @@ async function saveGasTests() {
             return buildRiskFromObj(obj);
         }
 
-        function buildRiskFromObj(obj) {
-            if (!obj.hazard || !obj.consequence || !obj.controlMeasures) return null;
-            const likeMap = { 'certain': 6, 'likely': 5, 'possible': 4, 'unlikely': 3, 'rare': 2, 'very rare': 1 };
-            const sevMap = { 'negligible': 1, 'minor': 2, 'serious': 3, 'major': 4, 'catastrophic': 5, 'disastrous': 6 };
-            let likelihood = 1,
-                severity = 1,
-                residualLikelihood = 1,
-                residualSeverity = 1;
-            if (obj.likelihood) {
-                const l = obj.likelihood.toLowerCase().trim();
-                for (let key in likeMap) { if (l.includes(key)) { likelihood = likeMap[key]; break; } }
-            }
-            if (obj.severity) {
-                const s = obj.severity.toLowerCase().trim();
-                for (let key in sevMap) { if (s.includes(key)) { severity = sevMap[key]; break; } }
-            }
-            if (obj.residualLikelihood) {
-                const l = obj.residualLikelihood.toLowerCase().trim();
-                for (let key in likeMap) { if (l.includes(key)) { residualLikelihood = likeMap[key]; break; } }
-            }
-            if (obj.residualSeverity) {
-                const s = obj.residualSeverity.toLowerCase().trim();
-                for (let key in sevMap) { if (s.includes(key)) { residualSeverity = sevMap[key]; break; } }
-            }
-            return {
-                hazard: obj.hazard,
-                consequence: obj.consequence,
-                likelihood: likelihood,
-                severity: severity,
-                controlMeasures: obj.controlMeasures.trim(),
-                residualLikelihood: residualLikelihood,
-                residualSeverity: residualSeverity,
-                notes: obj.notes || '',
-                riskCode: EGPC_MATRIX.getRiskCode(severity, likelihood),
-                riskScore: EGPC_MATRIX.getRiskScore(severity, likelihood),
-                riskLevel: EGPC_MATRIX.getRiskLevel(EGPC_MATRIX.getRiskScore(severity, likelihood)).level,
-                residualRiskCode: EGPC_MATRIX.getRiskCode(residualSeverity, residualLikelihood),
-                residualRiskScore: EGPC_MATRIX.getRiskScore(residualSeverity, residualLikelihood),
-                residualRiskLevel: EGPC_MATRIX.getRiskLevel(EGPC_MATRIX.getRiskScore(residualSeverity, residualLikelihood))
-                    .level
-            };
-        }
+   function buildRiskFromObj(obj) {
+    if (!obj.hazard || !obj.consequence || !obj.controlMeasures) return null;
 
+    const likeMap = {
+        'almost certain': 6, 'certain': 6,
+        'very likely': 5, 'highly likely': 5,
+        'likely': 4,
+        'possible': 3, 'moderate': 3,
+        'unlikely': 2, 'low': 2,
+        'rare': 1, 'very rare': 1
+    };
+    const sevMap = {
+        'disastrous': 'F', 'catastrophic': 'E', 'major': 'D',
+        'serious': 'C', 'minor': 'B', 'negligible': 'A'
+    };
+
+    function parseLik(raw) {
+        if (raw == null) return 1;
+        const s = String(raw).trim().toLowerCase();
+        const n = parseInt(s);
+        if (!isNaN(n) && n >= 1 && n <= 6) return n;
+        const idx = ['a','b','c','d','e','f'].indexOf(s);
+        if (idx >= 0) return 6 - idx;                      // legacy letter format
+        for (const k in likeMap) if (s.includes(k)) return likeMap[k];
+        return 1;
+    }
+    function parseSev(raw) {
+        if (raw == null) return 'A';
+        const s = String(raw).trim().toLowerCase();
+        if (/^[a-f]$/.test(s)) return s.toUpperCase();      // already a letter
+        const n = parseInt(s);
+        if (!isNaN(n) && n >= 1 && n <= 6) return SEVERITY_LETTERS[n - 1];
+        for (const k in sevMap) if (s.includes(k)) return sevMap[k];
+        return 'A';
+    }
+
+    const severity           = parseSev(obj.severity);
+    const likelihood         = parseLik(obj.likelihood);
+    const residualSeverity   = parseSev(obj.residualSeverity);
+    const residualLikelihood = parseLik(obj.residualLikelihood);
+
+    return {
+        hazard: obj.hazard,
+        consequence: obj.consequence,
+        likelihood, severity,
+        residualLikelihood, residualSeverity,
+        controlMeasures: obj.controlMeasures.trim(),
+        notes: obj.notes || '',
+        riskCode:          EGPC_MATRIX.getRiskCode(severity, likelihood),
+        riskScore:         EGPC_MATRIX.getRiskScore(severity, likelihood),
+        riskLevel:         EGPC_MATRIX.getRiskLevel(EGPC_MATRIX.getRiskScore(severity, likelihood)).level,
+        residualRiskCode:  EGPC_MATRIX.getRiskCode(residualSeverity, residualLikelihood),
+        residualRiskScore: EGPC_MATRIX.getRiskScore(residualSeverity, residualLikelihood),
+        residualRiskLevel: EGPC_MATRIX.getRiskLevel(EGPC_MATRIX.getRiskScore(residualSeverity, residualLikelihood)).level
+    };
+}
         // ========================================================================
         // ===== AI GENERATE =====
         // ========================================================================
@@ -5170,52 +5256,81 @@ async function exportPDFWithDetails() {
   }
 }
 function buildPDFHTML(title, desc, assessmentNo, d, logoLeft, logoRight, risks) {
+  // ===== DIAGNOSTIC MARKER – remove after verifying =====
+  console.log('[PDF v3] buildPDFHTML called with', risks.length, 'risks');
+  // =====================================================
+
   const likeLetters = ['F','E','D','C','B','A'];
 
-  // Build register table (same as before)
+  let lowCount = 0, mediumCount = 0, highCount = 0;
+  risks.forEach(r => {
+    const level = r.residualRiskLevel ||
+      EGPC_MATRIX.getRiskLevel(
+        r.residualRiskScore ||
+        EGPC_MATRIX.getRiskScore(r.residualSeverity, r.residualLikelihood)
+      ).level;
+    if (level === 'Low') lowCount++;
+    else if (level === 'Medium') mediumCount++;
+    else highCount++;
+  });
+
   function buildRiskRegisterHTML(risks) {
     let html = `
       <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; font-size:9px;">
+        <table style="width:100%; border-collapse:collapse; font-size:9px; table-layout:fixed;">
           <thead><tr style="background:#1a237e; color:white;">
-            <th style="padding:3px 4px; text-align:left;">#</th>
-            <th style="padding:3px 4px; text-align:left;">Hazard</th>
-            <th style="padding:3px 4px; text-align:left;">Consequence</th>
-            <th style="padding:3px 4px; text-align:center;">Like</th>
-            <th style="padding:3px 4px; text-align:center;">Sev</th>
-            <th style="padding:3px 4px; text-align:center;">Cat</th>
-            <th style="padding:3px 4px; text-align:left;">Control Measures</th>
-            <th style="padding:3px 4px; text-align:center;">Res.L</th>
-            <th style="padding:3px 4px; text-align:center;">Res.S</th>
-            <th style="padding:3px 4px; text-align:center;">Res.C</th>
-            <th style="padding:3px 4px; text-align:left;">Notes</th>
+            <th style="padding:3px 4px; text-align:left; width:3%;">#</th>
+            <th style="padding:3px 4px; text-align:left; width:10%;">Hazard</th>
+            <th style="padding:3px 4px; text-align:left; width:10%;">Consequence</th>
+            <th style="padding:3px 4px; text-align:center; width:4%;">Like</th>
+            <th style="padding:3px 4px; text-align:center; width:4%;">Sev</th>
+            <th style="padding:3px 4px; text-align:center; width:4%;">Cat</th>
+            <th style="padding:3px 4px; text-align:left; width:40%;">Control Measures</th>
+            <th style="padding:3px 4px; text-align:center; width:4%;">Res.L</th>
+            <th style="padding:3px 4px; text-align:center; width:4%;">Res.S</th>
+            <th style="padding:3px 4px; text-align:center; width:4%;">Res.C</th>
+            <th style="padding:3px 4px; text-align:left; width:13%;">Notes</th>
           </tr></thead>
           <tbody>`;
     risks.forEach((risk, i) => {
-      const lvl = EGPC_MATRIX.getRiskLevel(risk.riskScore || EGPC_MATRIX.getRiskScore(risk.severity, risk.likelihood));
-      const rlvl = EGPC_MATRIX.getRiskLevel(risk.residualRiskScore || EGPC_MATRIX.getRiskScore(risk.residualSeverity, risk.residualLikelihood));
-      const likeLetter = likeLetters[risk.likelihood - 1] || risk.likelihood;
-      const rLikeLetter = likeLetters[risk.residualLikelihood - 1] || risk.residualLikelihood;
-      const code = risk.riskCode || EGPC_MATRIX.getRiskCode(risk.severity, risk.likelihood);
-      const rCode = risk.residualRiskCode || EGPC_MATRIX.getRiskCode(risk.residualSeverity, risk.residualLikelihood);
+      const sevL  = normalizeSeverity(risk.severity);
+      const likN  = normalizeLikelihood(risk.likelihood);
+      const rSevL = normalizeSeverity(risk.residualSeverity);
+      const rLikN = normalizeLikelihood(risk.residualLikelihood);
+
+      const score  = EGPC_MATRIX.getRiskScore(sevL, likN);
+      const rScore = EGPC_MATRIX.getRiskScore(rSevL, rLikN);
+      const code   = EGPC_MATRIX.getRiskCode(sevL, likN);
+      const rCode  = EGPC_MATRIX.getRiskCode(rSevL, rLikN);
+      const lvl    = EGPC_MATRIX.getRiskLevel(score);
+      const rlvl   = EGPC_MATRIX.getRiskLevel(rScore);
+
+      const badgeText  = lvl.color === 'yellow' ? '#000' : '#fff';
+      const rBadgeText = rlvl.color === 'yellow' ? '#000' : '#fff';
+
       html += `<tr>
-        <td style="border-bottom:1px solid #ddd; padding:3px 4px;">${i+1}</td>
-        <td style="border-bottom:1px solid #ddd; padding:3px 4px;"><strong>${risk.hazard}</strong></td>
-        <td style="border-bottom:1px solid #ddd; padding:3px 4px;">${risk.consequence}</td>
-        <td style="border-bottom:1px solid #ddd; padding:3px 4px; text-align:center;">${likeLetter}</td>
-        <td style="border-bottom:1px solid #ddd; padding:3px 4px; text-align:center;">${risk.severity}</td>
-        <td style="border-bottom:1px solid #ddd; padding:3px 4px; text-align:center;"><span style="background:${lvl.color}; color:white; padding:1px 5px; border-radius:8px; font-size:8px; font-weight:600;">${code}</span></td>
-        <td style="border-bottom:1px solid #ddd; padding:3px 4px; font-size:8.5px;">${risk.controlMeasures.replace(/\n/g,'<br>')}</td>
-        <td style="border-bottom:1px solid #ddd; padding:3px 4px; text-align:center;">${rLikeLetter}</td>
-        <td style="border-bottom:1px solid #ddd; padding:3px 4px; text-align:center;">${risk.residualSeverity}</td>
-        <td style="border-bottom:1px solid #ddd; padding:3px 4px; text-align:center;"><span style="background:${rlvl.color}; color:white; padding:1px 5px; border-radius:8px; font-size:8px; font-weight:600;">${rCode}</span></td>
-        <td style="border-bottom:1px solid #ddd; padding:3px 4px;">${risk.notes || ''}</td>
+        <td style="border-bottom:1px solid #ddd; padding:3px 4px; font-size:8px;">${i+1}</td>
+        <td style="border-bottom:1px solid #ddd; padding:3px 4px; font-size:8.5px;"><strong>${risk.hazard}</strong></td>
+        <td style="border-bottom:1px solid #ddd; padding:3px 4px; font-size:8.5px;">${risk.consequence}</td>
+        <td style="border-bottom:1px solid #ddd; padding:3px 4px; text-align:center; font-size:8px;">${likN}</td>
+        <td style="border-bottom:1px solid #ddd; padding:3px 4px; text-align:center; font-size:8px;">${sevL}</td>
+        <td style="border-bottom:1px solid #ddd; padding:3px 4px; text-align:center;">
+          <span style="background:${lvl.color}; color:${badgeText}; padding:1px 5px; border-radius:8px; font-size:8px; font-weight:600;">${code}</span>
+        </td>
+        <td style="border-bottom:1px solid #ddd; padding:4px 6px; font-size:10.5px; line-height:1.45; vertical-align:top;">
+          ${risk.controlMeasures.replace(/\n/g,'<br>')}
+        </td>
+        <td style="border-bottom:1px solid #ddd; padding:3px 4px; text-align:center; font-size:8px;">${rLikN}</td>
+        <td style="border-bottom:1px solid #ddd; padding:3px 4px; text-align:center; font-size:8px;">${rSevL}</td>
+        <td style="border-bottom:1px solid #ddd; padding:3px 4px; text-align:center;">
+          <span style="background:${rlvl.color}; color:${rBadgeText}; padding:1px 5px; border-radius:8px; font-size:8px; font-weight:600;">${rCode}</span>
+        </td>
+        <td style="border-bottom:1px solid #ddd; padding:3px 4px; font-size:8px;">${risk.notes || ''}</td>
       </tr>`;
     });
     html += '</tbody></table></div>';
     return html;
   }
-
   function buildMatrixTable() {
     const letters = ['A','B','C','D','E','F'];
     const severities = [1,2,3,4,5,6];
@@ -5225,7 +5340,7 @@ function buildPDFHTML(title, desc, assessmentNo, d, logoLeft, logoRight, risks) 
       rows += `<tr><th>${l}</th>`;
       severities.forEach(s => {
         const code = EGPC_MATRIX.getRiskCode(s, lVal);
-        const cls = EGPC_MATRIX.getColorClass(s, lVal);
+        const cls  = EGPC_MATRIX.getColorClass(s, lVal);
         rows += `<td class="${cls}">${code}</td>`;
       });
       rows += '</tr>';
@@ -5239,34 +5354,49 @@ function buildPDFHTML(title, desc, assessmentNo, d, logoLeft, logoRight, risks) 
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
       body { font-family: 'Segoe UI', Arial, sans-serif; background: white; margin: 0; padding: 0; }
       .page { page-break-after: always; page-break-inside: avoid; padding: 10px 15px; }
-      .title-page {
-        text-align: center;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        min-height: 80vh;
-        padding: 20px;
+
+      .title-page { display: flex; flex-direction: column; min-height: 80vh; padding: 10px 20px; }
+      .title-page .header {
+        position: relative; border-bottom: 2px solid #1a237e;
+        padding: 8px 0 12px 0; margin-bottom: 16px;
+        text-align: center; min-height: 70px;
       }
-      .title-page .logo-left { position: absolute; top: 10px; left: 10px; max-height: 50px; max-width: 100px; }
-      .title-page .logo-right { position: absolute; top: 10px; right: 10px; max-height: 50px; max-width: 100px; }
-      .title-page h1 { font-size: 26px; color: #1a237e; margin-bottom: 6px; }
-      .title-page .sub { font-size: 18px; color: #0d47a1; margin-bottom: 4px; }
-      .title-page .assess-no { font-size: 14px; color: #333; margin-bottom: 16px; }
-      .title-page .details { font-size: 12px; text-align: left; max-width: 450px; margin: 0 auto; line-height: 1.5; }
-      .title-page .details div { padding: 4px 0; border-bottom: 1px solid #eee; }
-      .title-page .details .label { font-weight: 600; display: inline-block; width: 120px; }
-      .title-page .desc-text { font-size: 12px; text-align: left; max-width: 500px; margin: 12px auto 0; color: #444; }
-      .title-page .footer { font-size: 9px; color: #888; border-top: 1px solid #ddd; padding-top: 6px; margin-top: 16px; width: 100%; text-align: center; }
+      .title-page .header .logo-left  { position: absolute; left: 0;  top: 0; max-height: 55px; max-width: 110px; }
+      .title-page .header .logo-right { position: absolute; right: 0; top: 0; max-height: 55px; max-width: 110px; }
+      .title-page .header h1 { font-size: 24px; color: #1a237e; margin: 0 120px 6px 120px; padding-top: 6px; }
+      .title-page .header .sub { font-size: 15px; color: #0d47a1; margin: 4px 120px 0 120px; font-weight: 500; }
+
+      .title-page .meta-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 12px; }
+      .title-page .meta-table td { border: 1px solid #bbb; padding: 7px 10px; vertical-align: middle; }
+      .title-page .meta-table td.label { background: #eef2f7; font-weight: 600; color: #1a237e; width: 15%; }
+
+      .title-page .summary {
+        display: flex; justify-content: space-around;
+        background: #f0f4f8; padding: 12px; border-radius: 6px;
+        margin-bottom: 12px; border: 1px solid #d0d9e2;
+      }
+      .title-page .summary .item { text-align: center; flex: 1; border-right: 1px solid #d0d9e2; }
+      .title-page .summary .item:last-child { border-right: none; }
+      .title-page .summary .item .value { font-size: 22px; font-weight: bold; color: #1a237e; }
+      .title-page .summary .item .value.low    { color: #43a047; }
+      .title-page .summary .item .value.medium { color: #f9a825; }
+      .title-page .summary .item .value.high   { color: #d32f2f; }
+      .title-page .summary .item .label { font-size: 11px; color: #555; margin-top: 2px; }
+
+      .title-page .desc-section {
+        border: 1px solid #d0d9e2; padding: 10px 12px; border-radius: 4px;
+        font-size: 12px; color: #444; margin-bottom: 12px; background: #fafbfc;
+      }
+      .title-page .desc-section .label { font-weight: 600; color: #1a237e; display: block; margin-bottom: 4px; }
+      .title-page .footer { font-size: 9px; color: #888; border-top: 1px solid #ddd; padding-top: 6px; margin-top: auto; text-align: center; }
 
       .matrix-page h2 { font-size: 18px; color: #1a237e; margin-bottom: 8px; }
       .matrix-page .matrix-table { width: 100%; border-collapse: collapse; font-size: 11px; }
       .matrix-page .matrix-table th, .matrix-page .matrix-table td { border: 1px solid #666; padding: 4px 3px; text-align: center; }
-      .matrix-red { background: #d32f2f; color: white; }
+      .matrix-red    { background: #d32f2f; color: white; }
       .matrix-orange { background: #ef6c00; color: white; }
       .matrix-yellow { background: #fdd835; color: #333; }
-      .matrix-green { background: #43a047; color: white; }
+      .matrix-green  { background: #43a047; color: white; }
       .matrix-page .explanation { font-size: 11px; color: #555; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 8px; }
 
       .register-page h2 { font-size: 18px; color: #1a237e; margin-bottom: 6px; }
@@ -5278,59 +5408,393 @@ function buildPDFHTML(title, desc, assessmentNo, d, logoLeft, logoRight, risks) 
       .notes-page .notes-lines { width: 80%; margin: 0 auto; }
       .notes-page .notes-lines div { border-bottom: 1px solid #ccc; height: 24px; margin: 6px 0; }
       .notes-page .footer { font-size: 9px; color: #888; border-top: 1px solid #ddd; padding-top: 6px; margin-top: 20px; width: 100%; }
-    </style>
+          /* ===== EGPC INTEGRATED MATRIX TABLE ===== */
+      .egpc-matrix {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 7.5px;
+        table-layout: fixed;
+        margin-bottom: 8px;
+      }
+      .egpc-matrix th,
+      .egpc-matrix td {
+        border: 1px solid #333;
+        padding: 2px 3px;
+        vertical-align: middle;
+        text-align: center;
+      }
+      .egpc-matrix .egpc-group-header th {
+        background: #1a237e;
+        color: #fff;
+        font-size: 10px;
+        font-weight: bold;
+        padding: 4px;
+        letter-spacing: 0.5px;
+      }
+      .egpc-matrix .egpc-sub-header th {
+        background: #e8ecf0;
+        color: #1a237e;
+        font-size: 7.5px;
+        font-weight: bold;
+        padding: 3px 3px;
+        line-height: 1.2;
+      }
+      .egpc-matrix .egpc-desc-header th {
+        background: #f5f7fa;
+        color: #333;
+        font-size: 6.3px;
+        font-weight: normal;
+        padding: 2px 3px;
+        line-height: 1.15;
+        text-align: center;
+      }
+      .egpc-matrix .egpc-lk-term {
+        background: #f8f9fa;
+        text-align: left;
+        font-size: 7.5px;
+        vertical-align: middle;
+        line-height: 1.2;
+      }
+      .egpc-matrix .egpc-lk-freq,
+      .egpc-matrix .egpc-lk-prob {
+        background: #f8f9fa;
+        font-size: 6.5px;
+        vertical-align: middle;
+        line-height: 1.2;
+      }
+      .egpc-matrix .egpc-lk-desc {
+        background: #f8f9fa;
+        text-align: left;
+        font-size: 6.5px;
+        line-height: 1.2;
+        vertical-align: middle;
+      }
+      .egpc-matrix .egpc-cell {
+        font-size: 9.5px;
+        font-weight: bold;
+        min-height: 24px;
+      }
 
-    <!-- TITLE PAGE -->
+          /* ===== EGPC INTEGRATED MATRIX TABLE (likelihood horizontal, severity vertical) ===== */
+      .egpc-matrix {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 7.5px;
+        table-layout: fixed;
+        margin-bottom: 8px;
+      }
+      .egpc-matrix th,
+      .egpc-matrix td {
+        border: 1px solid #333;
+        padding: 2px 3px;
+        vertical-align: middle;
+        text-align: center;
+      }
+      .egpc-matrix .egpc-group-header th {
+        background: #1a237e;
+        color: #fff;
+        font-size: 9.5px;
+        font-weight: bold;
+        padding: 4px;
+        letter-spacing: 0.5px;
+      }
+      .egpc-matrix .egpc-sub-header th {
+        background: #e8ecf0;
+        color: #1a237e;
+        font-size: 7.5px;
+        font-weight: bold;
+        padding: 3px;
+        line-height: 1.2;
+      }
+      /* Likelihood definition rows (top) */
+      .egpc-matrix .egpc-lk-header {
+        background: #f0f4f8;
+        color: #1a237e;
+        font-weight: bold;
+        font-size: 7px;
+        text-align: left;
+        padding: 2px 4px;
+        vertical-align: middle;
+      }
+      .egpc-matrix .egpc-lk-freq-row td,
+      .egpc-matrix .egpc-lk-prob-row td {
+        background: #fafbfc;
+        font-size: 6.8px;
+        line-height: 1.2;
+      }
+      .egpc-matrix .egpc-lk-desc {
+        background: #fafbfc;
+        font-size: 6.3px;
+        line-height: 1.15;
+        text-align: left;
+        padding: 2px 3px;
+      }
+      /* Severity row labels (left) */
+      .egpc-matrix .egpc-sev-label {
+        background: #f8f9fa;
+        text-align: left;
+        font-size: 7.5px;
+        font-weight: 600;
+        vertical-align: middle;
+        line-height: 1.2;
+        padding: 3px 5px;
+      }
+      /* Matrix cells */
+      .egpc-matrix .egpc-cell {
+        font-size: 10px;
+        font-weight: bold;
+        min-height: 26px;
+      }
+              /* ===== EGPC RISK LEVEL DETAIL TABLE ===== */
+      .egpc-risk-level {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 7px;
+        table-layout: fixed;
+      }
+      .egpc-risk-level th,
+      .egpc-risk-level td {
+        border: 1px solid #333;
+        padding: 1px 3px;
+        vertical-align: top;
+        text-align: left;
+        line-height: 1.15;
+      }
+      .egpc-risk-level .egpc-group-header th {
+        background: #1a237e;
+        color: #fff;
+        font-size: 8px;
+        font-weight: bold;
+        padding: 3px;
+        text-align: center;
+      }
+      .egpc-risk-level .egpc-sub-header th {
+        background: #e8ecf0;
+        color: #1a237e;
+        font-size: 7px;
+        font-weight: bold;
+        text-align: center;
+        padding: 2px;
+      }
+      .egpc-risk-level .rl-level {
+        text-align: center;
+        vertical-align: middle;
+        font-size: 7px;
+        line-height: 1.15;
+      }
+      .egpc-risk-level .rl-extreme { background: #ffcdd2; }
+      .egpc-risk-level .rl-orange  { background: #ffe0b2; }
+      .egpc-risk-level .rl-yellow  { background: #fff9c4; }
+      .egpc-risk-level .rl-green   { background: #c8e6c9; }
+      .egpc-risk-level .rl-action  { text-align: left; font-size: 5.5px; }
+      .egpc-risk-level .rl-signoff { text-align: left; font-size: 5.5px; }
+      </style>
+
     <div class="page title-page">
-      ${logoLeft ? `<img src="${logoLeft}" class="logo-left" alt="Logo">` : ''}
-      ${logoRight ? `<img src="${logoRight}" class="logo-right" alt="Logo">` : ''}
-      <h1>RISK ASSESSMENT REPORT</h1>
-      <div class="sub">${title}</div>
-      <div class="assess-no">Assessment No: ${assessmentNo}</div>
-      <div class="details">
-        <div><span class="label">Prepared by:</span> ${d.preparedName} (${d.preparedDept})</div>
-        <div><span class="label">Reviewed by:</span> ${d.reviewedName} (${d.reviewedDept})</div>
-        <div><span class="label">Approved by:</span> ${d.approvedName} (${d.approvedDept})</div>
-        <div><span class="label">Date:</span> ${new Date(d.date).toLocaleDateString()}</div>
+      <div class="header">
+        ${logoLeft  ? `<img src="${logoLeft}"  class="logo-left"  alt="Logo">` : ''}
+        ${logoRight ? `<img src="${logoRight}" class="logo-right" alt="Logo">` : ''}
+        <h1>RISK ASSESSMENT REPORT</h1>
+        <div class="sub">${title}</div>
       </div>
-      ${desc ? `<div class="desc-text">${desc}</div>` : ''}
+
+      <table class="meta-table">
+        <tr>
+          <td class="label">Assessment No:</td><td>${assessmentNo}</td>
+          <td class="label">Date:</td><td>${new Date(d.date).toLocaleDateString()}</td>
+        </tr>
+        <tr>
+          <td class="label">Prepared by:</td><td>${d.preparedName}</td>
+          <td class="label">Dept:</td><td>${d.preparedDept}</td>
+        </tr>
+        <tr>
+          <td class="label">Reviewed by:</td><td>${d.reviewedName}</td>
+          <td class="label">Dept:</td><td>${d.reviewedDept}</td>
+        </tr>
+        <tr>
+          <td class="label">Approved by:</td><td>${d.approvedName}</td>
+          <td class="label">Dept:</td><td>${d.approvedDept}</td>
+        </tr>
+      </table>
+
+      <div class="summary">
+        <div class="item"><div class="value">${risks.length}</div><div class="label">Total Risks Identified</div></div>
+        <div class="item"><div class="value low">${lowCount}</div><div class="label">Low Residual</div></div>
+        <div class="item"><div class="value medium">${mediumCount}</div><div class="label">Medium Residual</div></div>
+        <div class="item"><div class="value high">${highCount}</div><div class="label">High / Extreme</div></div>
+      </div>
+
+      ${desc ? `<div class="desc-section"><span class="label">Description:</span>${desc}</div>` : ''}
+
       <div class="footer">Generated by PTW System on ${new Date().toLocaleString()}</div>
     </div>
 
-    <!-- MATRIX PAGE -->
-    <div class="page matrix-page">
-      <h2>EGPC Risk Matrix (6×6)</h2>
-      <table class="matrix-table">
-        <thead><tr><th>P\\S</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr></thead>
-        <tbody>${buildMatrixTable()}</tbody>
-      </table>
-      <div class="explanation">
-        <strong>Risk Levels:</strong>
-        <span style="display:inline-block; background:#d32f2f; color:white; padding:1px 8px; border-radius:4px; margin:0 4px;">Extreme</span>
-        <span style="display:inline-block; background:#ef6c00; color:white; padding:1px 8px; border-radius:4px; margin:0 4px;">High</span>
-        <span style="display:inline-block; background:#fdd835; color:#333; padding:1px 8px; border-radius:4px; margin:0 4px;">Medium</span>
-        <span style="display:inline-block; background:#43a047; color:white; padding:1px 8px; border-radius:4px; margin:0 4px;">Low</span>
-        <br><span style="font-size:10px;">Likelihood (A–F) × Severity (1–6). Residual risks must be at least "Medium" (yellow) before work proceeds.</span>
+      <!-- ============ MATRIX PAGE — EGPC INTEGRATED ============ -->
+    <div class="page matrix-page" style="page-break-inside:auto;">
+      <h2 style="margin-bottom:6px;">EGPC Corporate Risk Matrix (6×6)</h2>
+      ${buildEGPCMatrixTable()}
+      ${buildRiskLevelDetailTable()}
+      <div style="font-size:8px; color:#888; border-top:1px solid #ddd; padding-top:4px; margin-top:6px; text-align:center;">
+        EGPC Corporate Risk Matrix — Likelihood × Severity
       </div>
-      <div style="font-size:9px; color:#888; border-top:1px solid #ddd; padding-top:6px; margin-top:12px; text-align:center;">EGPC 6x6 Risk Matrix</div>
     </div>
 
-    <!-- RISK REGISTER (auto‑breaks) -->
     <div class="page register-page">
       <h2>Risk Register</h2>
       ${buildRiskRegisterHTML(risks)}
       <div class="footer">Risk Register – ${title}</div>
     </div>
 
-    <!-- NOTES PAGE -->
     <div class="page notes-page">
       <h2>NOTES</h2>
       <div class="sub">Use this page for handwritten notes after printing.</div>
-      <div class="notes-lines">
-        ${Array(12).fill('<div></div>').join('')}
-      </div>
+      <div class="notes-lines">${Array(12).fill('<div></div>').join('')}</div>
       <div class="footer">Notes</div>
     </div>
+  `;
+}
+// ================================================================
+// ===== EGPC MATRIX TABLE (integrated with Likelihood + Severity) =====
+// ================================================================
+function buildEGPCMatrixTable() {
+        const severityMeta = {
+        A: ['Disastrous',   'Disastrous injury or health effect; numerous fatalities (&gt;3)'],
+        B: ['Catastrophic', 'Catastrophic injury or health effect; multiple fatalities (2–3)'],
+        C: ['Major',        'Major injury or health effect; single fatality or multiple serious injuries'],
+        D: ['Serious',      'Serious injury or health effect; lost time injury or permanent partial disability'],
+        E: ['Minor',        'Minor injury or health effect; medical treatment case or restricted work'],
+        F: ['Negligible',   'Slight injury or health effect; first aid case only']
+    };
+    const likelihoodMeta = {
+        1: ['Rare',           '≥ 10<sup>-6</sup> to &lt; 10<sup>-5</sup>',   '≥ 0.0001% to &lt; 0.001%',  'A similar event has not yet occurred somewhere in our industry'],
+        2: ['Unlikely',       '≥ 10<sup>-5</sup> to &lt; 10<sup>-4</sup>',   '≥ 0.001% to &lt; 0.01%',    'A similar event has occurred somewhere in our industry but not in ENTITIES'],
+        3: ['Possible',       '≥ 10<sup>-4</sup> to &lt; 10<sup>-3</sup>',   '≥ 0.01% to &lt; 0.1%',      'A similar event has occurred at least once in ENTITIES'],
+        4: ['Likely',         '≥ 10<sup>-3</sup> to &lt; 10<sup>-2</sup>',   '≥ 0.1% to &lt; 1%',         'Event has occurred at least once in ENTITIES or is likely to occur within the lifetime of 10 similar COMPANIES'],
+        5: ['Very Likely',    '≥ 10<sup>-2</sup> to &lt; 10<sup>-1</sup>',   '≥ 1% to &lt; 10%',          'Event has occurred more than several times in ENTITIES or has occurred once or twice in the lifetime of the COMPANY'],
+        6: ['Almost Certain', '≥ 10<sup>-1</sup> to ≤ 1',                    '≥ 10% to ≤ 100%',           'The event is likely to occur several times in the lifetime of the COMPANY']
+    };
+
+    // Common column widths so both tables align vertically
+    const COLGROUP = `<colgroup>
+        <col style="width:18%">
+        <col style="width:13.66%"><col style="width:13.66%"><col style="width:13.66%">
+        <col style="width:13.66%"><col style="width:13.66%"><col style="width:13.66%">
+    </colgroup>`;
+
+    // ---------- TABLE 1: Likelihood definitions (horizontal, on top) ----------
+    let defsHtml = `<table class="egpc-matrix" style="margin-bottom:0;">`;
+    defsHtml += COLGROUP;
+    defsHtml += `<thead>
+        <tr class="egpc-group-header">
+            <th>LIKELIHOOD →</th>
+            <th colspan="6">LIKELIHOOD (horizontal)</th>
+        </tr>
+        <tr class="egpc-sub-header">
+            <th>Term</th>
+            ${[1,2,3,4,5,6].map(l => `<th>${l} — ${likelihoodMeta[l][0]}</th>`).join('')}
+        </tr>
+    </thead><tbody>
+        <tr class="egpc-lk-freq-row">
+            <td class="egpc-lk-header">Frequency<br><span style="font-weight:normal;font-size:6px;">(per year)</span></td>
+            ${[1,2,3,4,5,6].map(l => `<td>${likelihoodMeta[l][1]}</td>`).join('')}
+        </tr>
+        <tr class="egpc-lk-prob-row">
+            <td class="egpc-lk-header">Probability</td>
+            ${[1,2,3,4,5,6].map(l => `<td>${likelihoodMeta[l][2]}</td>`).join('')}
+        </tr>
+        <tr class="egpc-lk-desc-row">
+            <td class="egpc-lk-header">Likelihood<br>Description</td>
+            ${[1,2,3,4,5,6].map(l => `<td class="egpc-lk-desc">${likelihoodMeta[l][3]}</td>`).join('')}
+        </tr>
+    </tbody></table>`;
+
+    // ---------- TABLE 2: The matrix itself (severity rows on left) ----------
+    let matrixHtml = `<table class="egpc-matrix" style="margin-top:4px;">`;
+    matrixHtml += COLGROUP;
+    matrixHtml += `<thead>
+        <tr class="egpc-group-header">
+            <th>SEVERITY ↓</th>
+            <th colspan="6">LIKELIHOOD</th>
+        </tr>
+        <tr class="egpc-sub-header">
+            <th>Severity \\ Likelihood</th>
+            ${[1,2,3,4,5,6].map(l => `<th>${l}</th>`).join('')}
+        </tr>
+    </thead><tbody>`;
+
+    for (const s of SEVERITY_LETTERS) {
+        matrixHtml += `<tr>
+            <td class="egpc-sev-label"><b>${s}</b> — ${severityMeta[s][0]}</td>`;
+               for (let l = 1; l <= 6; l++) {
+            const code  = l + s;                       // ← NEW (likelihood + severity) → 1A, 2A …
+            const cls   = EGPC_MATRIX.getColorClass(s, l);
+            const score = EGPC_MATRIX.getRiskScore(s, l);
+            matrixHtml += `<td class="egpc-cell ${cls}" title="${code} - Score: ${score}">${code}</td>`;
+        }
+        matrixHtml += `</tr>`;
+    }
+    matrixHtml += `</tbody></table>`;
+
+    // ---------- TABLE 3: Severity descriptions (below, optional but useful) ----------
+    let sevDescHtml = `<table class="egpc-matrix" style="margin-top:4px;">
+        <colgroup><col style="width:18%"><col style="width:82%"></colgroup>
+        <thead>
+            <tr class="egpc-group-header">
+                <th colspan="2">SEVERITY — HEALTH &amp; SAFETY DESCRIPTION</th>
+            </tr>
+            <tr class="egpc-sub-header">
+                <th>Level</th>
+                <th>Description</th>
+            </tr>
+        </thead><tbody>
+            ${SEVERITY_LETTERS.map(s => `
+                <tr>
+                    <td class="egpc-sev-label"><b>${s}</b> — ${severityMeta[s][0]}</td>
+                    <td style="text-align:left;">${severityMeta[s][1]}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>`;
+
+    return defsHtml + matrixHtml + sevDescHtml;
+}
+
+// ================================================================
+// ===== RISK LEVEL DETAIL TABLE (actions + signoff) =====
+// ================================================================
+function buildRiskLevelDetailTable() {
+  return `
+    <table class="egpc-risk-level">
+      <colgroup>
+        <col style="width:16%;">
+        <col style="width:84%;">
+      </colgroup>
+      <thead>
+       
+        <tr class="egpc-sub-header">
+          <th>Risk Level</th>
+          <th>Minimum Required Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="rl-level rl-extreme"><b>Level 1 — High</b><br><i>(Intolerable)</i></td>
+          <td class="rl-action">Long-term operation at high risk is not allowed. Immediately identify risk mitigation according to the hierarchy of controls and implement risk mitigation to reduce the risk to ALARP within 30 days. In case of an extension, approval from the relevant holding company shall be obtained. Include in Risk Register for tracking. Consider advanced Risk Analysis methodologies for further investigation. Reporting the risk to the relevant top management within 24 hrs. Notify EGPC or the relevant Holding Companies about the risk within 7 Days.</td>
+        </tr>
+        <tr>
+          <td class="rl-level rl-orange"><b>Level 2 — Medium/High</b><br><i>(Tolerable if ALARP)</i></td>
+          <td class="rl-action">Conduct an ALARP study to determine if the cost of implementing additional risk mitigation is appropriate. Include in Risk Register for tracking. Consider advanced Risk Analysis methodologies for further investigation. Reporting the risk to the relevant top management within 7 Days.</td>
+        </tr>
+        <tr>
+          <td class="rl-level rl-yellow"><b>Level 3 — Medium</b><br><i>(Tolerable if ALARP)</i></td>
+          <td class="rl-action">Conduct an ALARP study to determine if the cost of implementing additional risk mitigation is appropriate. Monitor and improve the effectiveness of current controls. Include in Risk Register for tracking. Reporting the risk to the relevant top management within 30 Days.</td>
+        </tr>
+        <tr>
+          <td class="rl-level rl-green"><b>Level 4 — Low</b><br><i>(Broadly acceptable)</i></td>
+          <td class="rl-action">Low Priority, monitor and improve the effectiveness of current controls. Include in Risk Register for tracking.</td>
+        </tr>
+      </tbody>
+    </table>
   `;
 }
 // ========================================================================
@@ -5422,100 +5886,88 @@ function buildMatrixPageHTML() {
       .explanation { font-size: 11px; color: #555; border-top: 1px solid #ddd; padding-top: 12px; margin-top: 12px; }
       .footer { font-size: 9px; color: #888; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 16px; text-align: center; }
     </style>
-    <div class="matrix-page">
-      <h2>EGPC Risk Matrix (6×6)</h2>
-      <table class="matrix-table">
-        <thead><tr><th>P\\S</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr></thead>
-        <tbody>${matrixRows}</tbody>
-      </table>
-      <div class="explanation">
-        <strong>Risk Levels:</strong>
-        <span style="display:inline-block; background:#d32f2f; color:white; padding:2px 8px; border-radius:4px; margin:0 4px;">Extreme</span>
-        <span style="display:inline-block; background:#ef6c00; color:white; padding:2px 8px; border-radius:4px; margin:0 4px;">High</span>
-        <span style="display:inline-block; background:#fdd835; color:#333; padding:2px 8px; border-radius:4px; margin:0 4px;">Medium</span>
-        <span style="display:inline-block; background:#43a047; color:white; padding:2px 8px; border-radius:4px; margin:0 4px;">Low</span>
-        <br>
-        <strong>Interpretation:</strong> The matrix combines Likelihood (A–F) and Severity (1–6). The resulting category determines the risk level. All residual risks must be reduced to at least "Medium" (yellow) before work proceeds.
+       <!-- ============ MATRIX PAGE (Matrix + Reference Tables) ============ -->
+    <div class="page matrix-page" style="page-break-inside:auto;">
+      <h2 style="margin-bottom:4px;">EGPC Risk Matrix &amp; Reference Tables</h2>
+
+      <!-- Top row: Matrix (left) + Severity table (right) -->
+      <div style="display:flex; gap:8px; margin-bottom:3px;">
+        <div style="flex:0 0 48%;">
+          <h3 style="font-size:10px; color:#1a237e; margin:0 0 2px 0;">Risk Matrix (6×6)</h3>
+          <table class="matrix-table" style="font-size:9px;">
+            <thead><tr><th>P\\S</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr></thead>
+            <tbody>${buildMatrixTable()}</tbody>
+          </table>
+          <div style="font-size:7px; color:#555; margin-top:2px;">
+            <strong>Levels:</strong>
+            <span style="display:inline-block; background:#d32f2f; color:white; padding:0 4px; border-radius:2px;">Extreme</span>
+            <span style="display:inline-block; background:#ef6c00; color:white; padding:0 4px; border-radius:2px;">High</span>
+            <span style="display:inline-block; background:#fdd835; color:#333; padding:0 4px; border-radius:2px;">Medium</span>
+            <span style="display:inline-block; background:#43a047; color:white; padding:0 4px; border-radius:2px;">Low</span>
+          </div>
+        </div>
+
+        <div style="flex:1;">
+          <h3 style="font-size:10px; color:#1a237e; margin:0 0 2px 0;">Severity — Health &amp; Safety</h3>
+          <table style="width:100%; border-collapse:collapse; font-size:7px; table-layout:fixed;">
+            <thead>
+              <tr style="background:#1a237e; color:white;">
+                <th style="padding:2px 4px; text-align:left; width:24%;">Level</th>
+                <th style="padding:2px 4px; text-align:left; width:76%;">Health &amp; Safety Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="border:1px solid #ccc; padding:1px 4px; font-weight:bold;">1 — Negligible</td><td style="border:1px solid #ccc; padding:1px 4px;">Slight injury or health effect; first aid case only</td></tr>
+              <tr><td style="border:1px solid #ccc; padding:1px 4px; font-weight:bold;">2 — Minor</td><td style="border:1px solid #ccc; padding:1px 4px;">Minor injury or health effect; medical treatment case or restricted work</td></tr>
+              <tr><td style="border:1px solid #ccc; padding:1px 4px; font-weight:bold;">3 — Serious</td><td style="border:1px solid #ccc; padding:1px 4px;">Serious injury or health effect; lost time injury or permanent partial disability</td></tr>
+              <tr><td style="border:1px solid #ccc; padding:1px 4px; font-weight:bold;">4 — Major</td><td style="border:1px solid #ccc; padding:1px 4px;">Major injury or health effect; single fatality or multiple serious injuries</td></tr>
+              <tr><td style="border:1px solid #ccc; padding:1px 4px; font-weight:bold;">5 — Catastrophic</td><td style="border:1px solid #ccc; padding:1px 4px;">Catastrophic injury or health effect; multiple fatalities (2–3)</td></tr>
+              <tr><td style="border:1px solid #ccc; padding:1px 4px; font-weight:bold;">6 — Disastrous</td><td style="border:1px solid #ccc; padding:1px 4px;">Disastrous injury or health effect; numerous fatalities (&gt;3)</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div class="footer">EGPC 6x6 Risk Matrix</div>
+
+      ${buildMatrixReferenceTables()}
     </div>
   `;
 }
 
-function buildRegisterPageHTML(risks, title, continued = false, startIndex = 0) {
-  const likeLetters = ['F', 'E', 'D', 'C', 'B', 'A'];
-  let tableRows = '';
-  risks.forEach((risk, i) => {
-    const actualIndex = startIndex + i;
-    const lvl = EGPC_MATRIX.getRiskLevel(risk.riskScore || EGPC_MATRIX.getRiskScore(risk.severity, risk.likelihood));
-    const rlvl = EGPC_MATRIX.getRiskLevel(risk.residualRiskScore || EGPC_MATRIX.getRiskScore(risk.residualSeverity, risk.residualLikelihood));
-    const likeLetter = likeLetters[risk.likelihood - 1] || risk.likelihood;
-    const rLikeLetter = likeLetters[risk.residualLikelihood - 1] || risk.residualLikelihood;
-    const code = risk.riskCode || EGPC_MATRIX.getRiskCode(risk.severity, risk.likelihood);
-    const rCode = risk.residualRiskCode || EGPC_MATRIX.getRiskCode(risk.residualSeverity, risk.residualLikelihood);
-    
-    // Determine text color for badge based on background
-    const badgeColor = lvl.color; // 'green', 'yellow', 'orange', 'red'
-    const badgeTextColor = (badgeColor === 'yellow') ? '#000000' : '#ffffff';
-    const rBadgeColor = rlvl.color;
-    const rBadgeTextColor = (rBadgeColor === 'yellow') ? '#000000' : '#ffffff';
-    
-    tableRows += `
-      <tr>
-        <td style="border-bottom:1px solid #e0e0e0; padding:3px 4px; font-size:8px;">${actualIndex + 1}</td>
-        <td style="border-bottom:1px solid #e0e0e0; padding:3px 4px; font-size:8px;"><strong>${risk.hazard}</strong></td>
-        <td style="border-bottom:1px solid #e0e0e0; padding:3px 4px; font-size:8px;">${risk.consequence}</td>
-        <td style="border-bottom:1px solid #e0e0e0; padding:3px 4px; font-size:8px; text-align:center;">${likeLetter}</td>
-        <td style="border-bottom:1px solid #e0e0e0; padding:3px 4px; font-size:8px; text-align:center;">${risk.severity}</td>
-        <td style="border-bottom:1px solid #e0e0e0; padding:3px 4px; font-size:8px; text-align:center;">
-          <span style="background:${lvl.color}; color:${badgeTextColor}; padding:1px 6px; border-radius:8px; font-size:7px; font-weight:bold;">${code}</span>
-        </td>
-        <td style="border-bottom:1px solid #e0e0e0; padding:3px 4px; font-size:7.5px; font-weight:bold;">${risk.controlMeasures.replace(/\n/g,'<br>')}</td>
-        <td style="border-bottom:1px solid #e0e0e0; padding:3px 4px; font-size:8px; text-align:center;">${rLikeLetter}</td>
-        <td style="border-bottom:1px solid #e0e0e0; padding:3px 4px; font-size:8px; text-align:center;">${risk.residualSeverity}</td>
-        <td style="border-bottom:1px solid #e0e0e0; padding:3px 4px; font-size:8px; text-align:center;">
-          <span style="background:${rlvl.color}; color:${rBadgeTextColor}; padding:1px 6px; border-radius:8px; font-size:7px; font-weight:bold;">${rCode}</span>
-        </td>
-        <td style="border-bottom:1px solid #e0e0e0; padding:3px 4px; font-size:8px;">${risk.notes || ''}</td>
-      </tr>
-    `;
-  });
-  const pageTitle = continued ? `Risk Register (continued)` : `Risk Register`;
-  return `
-    <style>
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: 'Segoe UI', Arial, sans-serif; background: white; }
-      .register-page {
-        width: 100%;
-        height: 100%;
-        padding: 15px 15px 10px 15px;
-        display: flex;
-        flex-direction: column;
-        background: white;
-        overflow: hidden;
-      }
-      h2 { font-size: 18px; color: #1a237e; margin-bottom: 6px; }
-      table { width: 100%; border-collapse: collapse; font-size: 8.5px; table-layout: fixed; }
-      th { background: #1a237e; color: white; padding: 3px 4px; text-align: left; font-size: 8px; }
-      .risk-level-badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 7px; font-weight: 600; color: white; }
-      .footer { font-size: 8px; color: #888; border-top: 1px solid #ddd; padding-top: 4px; margin-top: 6px; text-align: center; }
-    </style>
-    <div class="register-page">
-      <h2>${pageTitle}</h2>
-      <table>
-        <thead><tr>
-          <th style="width:4%;">#</th><th style="width:12%;">Hazard</th><th style="width:12%;">Consequence</th>
-          <th style="width:5%;">Like</th><th style="width:5%;">Sev</th><th style="width:5%;">Cat</th>
-          <th style="width:28%;">Control Measures</th><th style="width:5%;">Res.L</th><th style="width:5%;">Res.S</th>
-          <th style="width:5%;">Res.C</th><th style="width:14%;">Notes</th>
-        </tr></thead>
-        <tbody>${tableRows}</tbody>
-      </table>
-      <div class="footer">${continued ? 'Risk Register (continued)' : `Risk Register – ${title}`}</div>
-    </div>
+  // ── Risk register table ──────────────────────────────────────
+function buildRiskRegisterHTML(risks) {
+    let html = `
+    <div style="overflow-x:auto;">
+      <table class="risk-register-table">
+        <thead><tr><th style="width:4%;">#</th><th class="col-hazard">Hazard</th><th class="col-consequence">Consequence</th>
+        <th class="col-like">Likelihood</th><th class="col-sev">Severity</th><th class="col-code">Risk Cat</th>
+        <th class="col-control">Control Measures</th><th class="col-rlike">Res. Likelihood</th>
+        <th class="col-rsev">Res. Severity</th><th class="col-rcode">Res. Cat</th><th class="col-notes">Notes</th></tr></thead><tbody>
   `;
+    risks.forEach((risk, i) => {
+        const sevL  = normalizeSeverity(risk.severity);
+        const likN  = normalizeLikelihood(risk.likelihood);
+        const rSevL = normalizeSeverity(risk.residualSeverity);
+        const rLikN = normalizeLikelihood(risk.residualLikelihood);
+
+        const score  = EGPC_MATRIX.getRiskScore(sevL, likN);
+        const rScore = EGPC_MATRIX.getRiskScore(rSevL, rLikN);
+        const code   = EGPC_MATRIX.getRiskCode(sevL, likN);
+        const rCode  = EGPC_MATRIX.getRiskCode(rSevL, rLikN);
+        const lvl    = EGPC_MATRIX.getRiskLevel(score);
+        const rlvl   = EGPC_MATRIX.getRiskLevel(rScore);
+
+        html += `<tr><td>${i+1}</td><td><strong>${risk.hazard}</strong></td><td>${risk.consequence}</td>
+      <td>${likN}</td><td>${sevL}</td>
+      <td><span class="risk-level-badge" style="background:${lvl.color}">${code}</span></td>
+      <td style="font-size:11px;color:#555;">${risk.controlMeasures.replace(/\n/g,'<br>')}</td>
+      <td>${rLikN}</td><td>${rSevL}</td>
+      <td><span class="risk-level-badge" style="background:${rlvl.color}">${rCode}</span></td>
+      <td>${risk.notes || ''}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    return html;
 }
-function buildNotesPageHTML() {
+  function buildNotesPageHTML() {
   return `
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -6477,7 +6929,7 @@ function buildTBTPrintHTML(tbt, permit) {
 // ========================================================================
         // ===== PERMIT PDF EXPORT (full) =====
         // ========================================================================
-        async function exportPermitPDF1() {
+        async function exportPermitPDF() {
             const permit = STATE.currentPermit;
             if (!permit) { showToast('No permit loaded', 'warning'); return; }
             let rawMeta = permit['PermitMetadata (JSON)'];
@@ -6583,7 +7035,7 @@ function buildTBTPrintHTML(tbt, permit) {
 // ================================================================
 // ===== EXPORT PERMIT PDF (BILINGUAL, BROWSER PRINT) =====
 // ================================================================
-async function exportPermitPDF() {
+async function exportPermitPDF1() {
   const permit = STATE.currentPermit;
   if (!permit) { showToast('No permit loaded', 'warning'); return; }
 
